@@ -20,25 +20,32 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import providers, usage
+from . import providers, skin, usage
 from .config import Config
 from .settings import SettingsDialog
 
 BASE_W = 320
-RADIUS = 16
 DRAG_THRESHOLD = 5
 FONT_FAMILY = "Microsoft YaHei UI"
 
-BTN_QSS = """
-QPushButton {
+BTN_QSS = f"""
+QPushButton {{
     background: transparent;
-    color: rgba(255,255,255,200);
+    color: rgba(255,255,255,210);
     border: none;
     border-radius: 6px;
-}
-QPushButton:hover { background: rgba(255,255,255,40); color: white; }
-QPushButton:pressed { background: rgba(255,255,255,70); }
-QPushButton:checked { color: #ffd76a; }
+}}
+QPushButton:hover {{
+    background: rgba({skin.NEON_CYAN_RGB[0]},{skin.NEON_CYAN_RGB[1]},{skin.NEON_CYAN_RGB[2]},35);
+    color: {skin.NEON_CYAN};
+}}
+QPushButton:pressed {{
+    background: rgba({skin.NEON_CYAN_RGB[0]},{skin.NEON_CYAN_RGB[1]},{skin.NEON_CYAN_RGB[2]},70);
+    color: white;
+}}
+QPushButton:checked {{
+    color: {skin.NEON_CYAN};
+}}
 """
 
 
@@ -59,8 +66,9 @@ class BalanceWorker(QRunnable):
 class RowWidget(QWidget):
     """单行：默认显示余额，悬停时临时切换为今日用量。"""
 
-    def __init__(self, title: str, scale: float, parent=None) -> None:
+    def __init__(self, title: str, accent_rgb, scale: float, parent=None) -> None:
         super().__init__(parent)
+        self.accent = accent_rgb
         self.scale = scale
         self.balance_text = "读取中…"
         self.usage_text = "今日 —"
@@ -72,8 +80,8 @@ class RowWidget(QWidget):
         self.value_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.value_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.title_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.title_label.setStyleSheet("color: rgba(255,255,255,220);")
-        self.value_label.setStyleSheet("color: white;")
+        self.title_label.setStyleSheet(f"color: {skin.TITLE_COLOR};")
+        self.value_label.setStyleSheet(f"color: rgb({accent_rgb[0]},{accent_rgb[1]},{accent_rgb[2]});")
         lay.addWidget(self.title_label)
         lay.addStretch(1)
         lay.addWidget(self.value_label)
@@ -111,7 +119,9 @@ class RowWidget(QWidget):
         rect = self.rect().adjusted(round(6 * self.scale), 1, round(-6 * self.scale), -1)
         path = QPainterPath()
         path.addRoundedRect(QRectF(rect), 10, 10)
-        p.fillPath(path, QColor(0, 0, 0, 70))
+        p.fillPath(path, QColor(*skin.ROW_BG_RGB, skin.ROW_BG_ALPHA))
+        p.setPen(QPen(QColor(*self.accent, skin.ROW_BORDER_ALPHA), 1))
+        p.drawRoundedRect(QRectF(rect).adjusted(0.5, 0.5, -0.5, -0.5), 10, 10)
         super().paintEvent(event)
 
 
@@ -159,8 +169,8 @@ class MainWindow(QWidget):
             self.bar.addWidget(b)
         self.root.addLayout(self.bar)
 
-        self.row_deepseek = RowWidget("DeepSeek", self.scale, self)
-        self.row_vision = RowWidget("识图", self.scale, self)
+        self.row_deepseek = RowWidget("DeepSeek", skin.NEON_CYAN_RGB, self.scale, self)
+        self.row_vision = RowWidget("识图", skin.NEON_MAGENTA_RGB, self.scale, self)
         self.root.addWidget(self.row_deepseek)
         self.root.addWidget(self.row_vision)
         self.root.addSpacing(round(16 * self.scale))
@@ -274,16 +284,39 @@ class MainWindow(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = self.rect()
-        radius = round(RADIUS * self.scale)
+        radius = round(skin.BG_RADIUS * self.scale)
         path = QPainterPath()
         path.addRoundedRect(QRectF(rect), radius, radius)
         p.setClipPath(path)
+
+        # 高透明深色渐变（真模糊时让桌面透进来）
         grad = QLinearGradient(0, 0, 0, rect.height())
-        grad.setColorAt(0, QColor(32, 42, 68, 245))
-        grad.setColorAt(1, QColor(16, 20, 36, 245))
+        grad.setColorAt(0, QColor(*skin.BG_TOP, skin.BG_ALPHA))
+        grad.setColorAt(1, QColor(*skin.BG_BOTTOM, skin.BG_ALPHA))
         p.fillPath(path, QBrush(grad))
+
+        # 顶部高光细线（玻璃反光）
+        if skin.GLASS_HIGHLIGHT_ENABLED and rect.height() > 8:
+            h = max(1, round(skin.GLASS_HIGHLIGHT_HEIGHT * self.scale))
+            p.setPen(QPen(QColor(255, 255, 255, skin.GLASS_HIGHLIGHT_ALPHA), h))
+            p.drawLine(rect.left() + radius, rect.top() + h + 1, rect.right() - radius, rect.top() + h + 1)
+
+        # 极淡扫描线
+        if skin.SCANLINE_ENABLED and rect.height() > 12:
+            p.setPen(QPen(QColor(*skin.NEON_CYAN_RGB, skin.SCANLINE_ALPHA), max(1, round(skin.SCANLINE_WIDTH * self.scale))))
+            step = max(4, round(skin.SCANLINE_SPACING * self.scale))
+            y = rect.top() + step
+            while y < rect.bottom():
+                p.drawLine(rect.left(), y, rect.right(), y)
+                y += step
+
         p.setClipping(False)
-        p.setPen(QPen(QColor(255, 255, 255, 36), 1))
+
+        # 霓虹描边：外圈光晕 + 内圈描边
+        if skin.BORDER_GLOW_ENABLED:
+            p.setPen(QPen(QColor(*skin.NEON_CYAN_RGB, skin.BORDER_ALPHA_OUTER), round(4 * self.scale)))
+            p.drawRoundedRect(QRectF(rect).adjusted(0.5, 0.5, -0.5, -0.5), radius, radius)
+        p.setPen(QPen(QColor(*skin.NEON_CYAN_RGB, skin.BORDER_ALPHA_INNER), max(1, round(skin.BORDER_WIDTH * self.scale))))
         p.drawRoundedRect(QRectF(rect).adjusted(0.5, 0.5, -0.5, -0.5), radius, radius)
 
     # ---------- 拖拽 ----------

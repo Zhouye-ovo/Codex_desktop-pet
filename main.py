@@ -1,7 +1,7 @@
 """模型余额 / 用量悬浮小窗入口。"""
 import sys
 
-from src import keys, providers, usage
+from src import glass, keys, providers, skin, usage
 
 
 def selftest() -> int:
@@ -51,6 +51,8 @@ def main() -> None:
     cfg = Config.load()
     win = MainWindow(cfg)
     win.show()
+    if skin.REAL_BLUR_ENABLED:
+        glass.apply_real_blur(int(win.winId()))
     sys.exit(app.exec())
 
 
