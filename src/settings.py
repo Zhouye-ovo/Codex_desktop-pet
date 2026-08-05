@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from . import skin
 from .config import SCALE_OPTIONS
 
 
@@ -21,6 +22,25 @@ class SettingsDialog(QDialog):
         self.setWindowTitle("设置")
         self.setModal(True)
         self.setMinimumWidth(260)
+        self.setStyleSheet(f"""
+QDialog {{ background-color: {skin.DIALOG_BG}; }}
+QLabel {{ color: {skin.TEXT_LABEL}; }}
+QLineEdit, QComboBox {{
+    background-color: {skin.INPUT_BG};
+    color: {skin.TEXT_STRONG};
+    border: 1px solid {skin.BORDER_MED};
+    border-radius: 4px;
+    padding: 4px;
+}}
+QPushButton {{
+    background-color: {skin.BTN_BG};
+    color: {skin.TEXT_LABEL};
+    border: 1px solid {skin.BORDER_MED};
+    border-radius: 4px;
+    padding: 4px 12px;
+}}
+QPushButton:hover {{ background-color: {skin.BTN_HOVER}; }}
+""")
         self._result = (cfg.refresh_minutes, cfg.scale)
 
         lay = QVBoxLayout(self)
