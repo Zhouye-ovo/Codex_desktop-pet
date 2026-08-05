@@ -10,7 +10,6 @@ CONFIG_PATH = os.path.join(PROJECT_ROOT, "config.json")
 
 SCALE_OPTIONS = [80, 100, 120, 150]
 DEFAULT_REFRESH_MINUTES = 10
-DEFAULT_BG = "assets/bg.png"
 
 
 @dataclass
@@ -19,7 +18,6 @@ class Config:
     topmost: bool = True
     scale: int = 100
     refresh_minutes: int = DEFAULT_REFRESH_MINUTES
-    bg: str = DEFAULT_BG
 
     @classmethod
     def load(cls) -> "Config":
@@ -31,7 +29,6 @@ class Config:
             cfg.topmost = bool(data.get("topmost", True))
             cfg.scale = int(data.get("scale", 100))
             cfg.refresh_minutes = int(data.get("refresh_minutes", DEFAULT_REFRESH_MINUTES))
-            cfg.bg = str(data.get("bg", DEFAULT_BG))
         except (FileNotFoundError, ValueError, TypeError, OSError):
             pass
         cfg.refresh_minutes = max(1, min(1440, cfg.refresh_minutes))
@@ -45,8 +42,3 @@ class Config:
         except OSError:
             pass
 
-    def bg_abs(self) -> str:
-        p = self.bg
-        if not os.path.isabs(p):
-            p = os.path.join(PROJECT_ROOT, p)
-        return p

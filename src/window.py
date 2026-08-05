@@ -1,7 +1,5 @@
-"""主窗口：无边框透明悬浮窗，固定画布 + 四按钮顶栏 + 两行余额 + 悬停切换今日用量。"""
+"""主窗口：无边框透明悬浮窗，紧凑卡片（四按钮顶栏 + 两行余额），悬停切换今日用量。"""
 from __future__ import annotations
-
-import os
 
 from PySide6.QtCore import QRectF, Qt, QThreadPool, QTimer, QRunnable, QObject, Signal
 from PySide6.QtGui import (
@@ -12,7 +10,6 @@ from PySide6.QtGui import (
     QPainter,
     QPainterPath,
     QPen,
-    QPixmap,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -28,7 +25,6 @@ from .config import Config
 from .settings import SettingsDialog
 
 BASE_W = 320
-BASE_H = 400
 RADIUS = 16
 DRAG_THRESHOLD = 5
 FONT_FAMILY = "Microsoft YaHei UI"
@@ -134,8 +130,6 @@ class MainWindow(QWidget):
         self.setWindowFlags(flags)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
-
-        self.bg_pixmap = self._load_bg()
         self._build_ui()
         self._apply_scale()
         self._apply_pos()
@@ -165,8 +159,6 @@ class MainWindow(QWidget):
             self.bar.addWidget(b)
         self.root.addLayout(self.bar)
 
-        self.root.addStretch(1)
-
         self.row_deepseek = RowWidget("DeepSeek", self.scale, self)
         self.row_vision = RowWidget("识图", self.scale, self)
         self.root.addWidget(self.row_deepseek)
@@ -189,8 +181,7 @@ class MainWindow(QWidget):
     def _apply_scale(self) -> None:
         s = self.cfg.scale / 100.0
         self.scale = s
-        w, h = round(BASE_W * s), round(BASE_H * s)
-        self.setFixedSize(w, h)
+        self.setFixedWidth(round(BASE_W * s))
         self.bar.setContentsMargins(round(8 * s), round(8 * s), round(8 * s), 0)
         self.bar.setSpacing(round(4 * s))
         for b in (self.btn_refresh, self.btn_settings, self.btn_pin, self.btn_close):
@@ -198,6 +189,8 @@ class MainWindow(QWidget):
             b.setFont(QFont(FONT_FAMILY, round(11 * s)))
         self.row_deepseek.set_scale(s)
         self.row_vision.set_scale(s)
+        # 先固定宽度，再让高度按内容自适应，避免把宽度撑开
+        self.adjustSize()
         self.update()
 
     def _apply_pos(self) -> None:
@@ -218,7 +211,6 @@ class MainWindow(QWidget):
 
     # ---------- 数据刷新 ----------
     def refresh_all(self) -> None:
-        self.bg_pixmap = self._load_bg()
         self.update()
         self.row_deepseek.set_usage(self._fmt_usage(usage.deepseek_today_tokens()))
         self.row_vision.set_usage(self._fmt_usage(usage.vision_today_tokens()))
@@ -277,34 +269,19 @@ class MainWindow(QWidget):
         self.timer.stop()
         self.timer.start(max(1, self.cfg.refresh_minutes) * 60 * 1000)
 
-    # ---------- 背景 / 绘制 ----------
-    def _load_bg(self):
-        path = self.cfg.bg_abs()
-        if os.path.isfile(path):
-            pm = QPixmap(path)
-            if not pm.isNull():
-                return pm
-        return None
-
+    # ---------- 绘制 ----------
     def paintEvent(self, event) -> None:
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         rect = self.rect()
         radius = round(RADIUS * self.scale)
         path = QPainterPath()
         path.addRoundedRect(QRectF(rect), radius, radius)
         p.setClipPath(path)
-        if self.bg_pixmap is not None:
-            p.drawPixmap(rect, self.bg_pixmap)
-        else:
-            grad = QLinearGradient(0, 0, 0, rect.height())
-            grad.setColorAt(0, QColor(32, 42, 68, 245))
-            grad.setColorAt(1, QColor(16, 20, 36, 245))
-            p.fillPath(path, QBrush(grad))
-            p.setPen(QColor(255, 255, 255, 150))
-            p.setFont(QFont(FONT_FAMILY, round(13 * self.scale)))
-            p.drawText(rect, Qt.AlignmentFlag.AlignCenter, "将底图放到 assets/bg.png")
+        grad = QLinearGradient(0, 0, 0, rect.height())
+        grad.setColorAt(0, QColor(32, 42, 68, 245))
+        grad.setColorAt(1, QColor(16, 20, 36, 245))
+        p.fillPath(path, QBrush(grad))
         p.setClipping(False)
         p.setPen(QPen(QColor(255, 255, 255, 36), 1))
         p.drawRoundedRect(QRectF(rect).adjusted(0.5, 0.5, -0.5, -0.5), radius, radius)
