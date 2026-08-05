@@ -359,17 +359,28 @@ class MainWindow(QWidget):
 
         mw = round(180 * s)
         self.model_label.setGeometry(round(cx - mw / 2), round(cy - face_r * 0.62), mw, round(20 * s))
-        bw, bh = self.balance_label._pixel_size()
-        bx = round(cx - bw / 2)
-        by = round(cy - face_r * 0.12 - bh / 2)
-        self.balance_label.setGeometry(bx, by, bw, bh)
-        self.usage_overlay.setGeometry(round(cx - max(bw, 190 * s) / 2), by, round(max(bw, 190 * s)), bh)
+        self._place_balance_label()
         self.today_label.setGeometry(round(cx - mw / 2), round(cy + face_r * 0.22), mw, round(18 * s))
         self.session_label.setGeometry(round(cx - mw / 2), round(cy + face_r * 0.38), mw, round(18 * s))
         self.open_label.setGeometry(round(cx - mw / 2), round(cy + face_r * 0.60), mw, round(16 * s))
         self.v_label.setGeometry(round(cx - mw / 2), round(cy + face_r * 0.78), mw, round(16 * s))
 
         self.update()
+
+    def _place_balance_label(self) -> None:
+        """按当前余额文字重算点阵标签尺寸并居中放置，避免文字变长后被裁切。"""
+        s = self.scale
+        W, H = self.width(), self.height()
+        top = round(TOPBAR_BOTTOM * s)
+        cx = W / 2.0
+        cy = top + (H - top) / 2.0
+        r = round(DIAL_D * s) / 2.0
+        face_r = r - round(40 * s) - max(1, round(2 * s))
+        bw, bh = self.balance_label._pixel_size()
+        bx = round(cx - bw / 2)
+        by = round(cy - face_r * 0.12 - bh / 2)
+        self.balance_label.setGeometry(bx, by, bw, bh)
+        self.usage_overlay.setGeometry(round(cx - max(bw, 190 * s) / 2), by, round(max(bw, 190 * s)), bh)
 
     def _apply_pos(self) -> None:
         if not self.cfg.pos:
@@ -427,6 +438,7 @@ class MainWindow(QWidget):
         error = st.current is None and st.last_error is not None
         self.balance_label.set_error(error)
         self.balance_label.set_text("--" if st.current is None else f"¥{st.current:.2f}")
+        self._place_balance_label()
         self.usage_overlay.setText(f"{st.today_tokens:,} TOKENS")
         self.today_label.setText(f"TODAY {st.today_tokens:,} TOKENS")
         self.session_label.setText(self._fmt_session(st))
