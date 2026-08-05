@@ -5,6 +5,10 @@ from src import keys, providers, usage
 
 
 def selftest() -> int:
+    try:
+        sys.stdout.reconfigure(errors="replace")
+    except Exception:
+        pass
     print("== 余额/用量自检 ==")
     st = keys.key_status()
     if st["deepseek"][0]:
@@ -20,13 +24,13 @@ def selftest() -> int:
     if r1.error:
         print(f"DeepSeek 余额: 失败 - {r1.error}")
     else:
-        print(f"DeepSeek 余额: {'可用' if r1.available else '不可用'} ¥{r1.amount:.2f} ({r1.currency})")
+        print(f"DeepSeek 余额: {'可用' if r1.available else '不可用'} CNY {r1.amount:.2f} ({r1.currency})")
 
     r2 = providers.SiliconFlowProvider().fetch()
     if r2.error:
         print(f"硅基流动余额: 失败 - {r2.error}")
     else:
-        print(f"硅基流动余额: ¥{r2.amount:.2f} ({r2.currency})")
+        print(f"硅基流动余额: CNY {r2.amount:.2f} ({r2.currency})")
 
     print(f"DeepSeek 今日 tokens: {usage.deepseek_today_tokens():,}")
     print(f"识图今日 tokens: {usage.vision_today_tokens():,}")

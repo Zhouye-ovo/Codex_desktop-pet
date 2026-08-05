@@ -82,9 +82,10 @@ class SiliconFlowProvider:
         except Exception as e:
             return BalanceResult(self.name, None, error=f"硅基流动请求失败: {_safe(e)}")
         try:
-            amount = data.get("balance")
+            payload = data.get("data") or data
+            amount = payload.get("balance")
             if amount is None:
-                amount = data.get("totalBalance") or data.get("total_balance")
+                amount = payload.get("totalBalance") or payload.get("chargeBalance")
             if amount is None:
                 return BalanceResult(self.name, None, error="硅基流动响应中没有 balance 字段")
             return BalanceResult(self.name, float(amount), currency="CNY")

@@ -142,6 +142,7 @@ class MainWindow(QWidget):
 
         self.pool = QThreadPool()
         self.pool.setMaxThreadCount(4)
+        self._workers = set()  # 持有 worker 引用，防止被 GC 导致信号丢失
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh_all)
         self._restart_timer()
@@ -227,6 +228,8 @@ class MainWindow(QWidget):
     def _start_worker(self, provider, row: RowWidget) -> None:
         worker = BalanceWorker(provider)
         worker.signals.done.connect(lambda res, r=row: self._on_result(r, res))
+        self._workers.add(worker)
+        worker.signals.done.connect(lambda res, w=worker: self._workers.discard(w))
         self.pool.start(worker)
 
     def _on_result(self, row: RowWidget, res: providers.BalanceResult) -> None:
